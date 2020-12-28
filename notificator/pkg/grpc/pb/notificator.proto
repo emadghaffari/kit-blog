@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package pb;
+
+
+
+//The Notificator service definition.
+service Notificator {
+ rpc Send (SendRequest) returns (SendReply);
+}
+
+message SendRequest {
+    string to = 1;
+    string body = 2;
+}
+
+message SendReply {
+    enum ReplyType
+    {
+        Success = 0;
+        Fail = 1;
+    }
+    string id = 1;
+    ReplyType status = 2;
+
+}
