@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package pb;
+
+
+
+//The Comments service definition.
+service Comments {
+ rpc Store  (StoreRequest ) returns (StoreReply );
+ rpc Update (UpdateRequest) returns (UpdateReply);
+ rpc List   (ListRequest  ) returns (ListReply  );
+}
+
+message comment{
+    string postID = 1;
+    string userID = 2;
+    string title = 3;
+    string body = 4;
+}
+
+message StoreRequest {
+    string postID = 1;
+    string userID = 2;
+    string title = 3;
+    string body = 4;
+}
+
+message StoreReply {
+    enum ReplyType {
+        Success = 0;
+        Fail    = 1;
+    }
+    string id = 1;
+    string status = 2;
+}
+
+message UpdateRequest {
+    string postID = 1;
+    string userID = 2;
+    string title = 3;
+    string body = 4;
+    string id = 5;
+}
+
+message UpdateReply {
+    enum ReplyType {
+        Success = 0;
+        Fail    = 1;
+    }
+    string id = 1;
+    string status = 2;
+}
+
+message ListRequest {
+    string postID = 1;
+}
+
+message ListReply {
+    enum ReplyType {
+        Success = 0;
+        Fail    = 1;
+    }
+    repeated comment comments = 1;
+    string status = 2;
+
+}
+
