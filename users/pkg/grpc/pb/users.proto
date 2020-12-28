@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package pb;
+
+
+
+//The Users service definition.
+service Users {
+ rpc Login    (LoginRequest   ) returns (LoginReply   );
+ rpc Register (RegisterRequest) returns (RegisterReply);
+ rpc Get      (GetRequest     ) returns (GetReply     );
+}
+
+message LoginRequest {
+ string username = 1;
+ string password = 2;
+}
+
+message LoginReply {
+ enum ReplyType {
+  Success = 0;
+  Fail    = 1;
+ }
+ string    token  = 1;
+ ReplyType status = 2;
+}
+
+message RegisterRequest {
+ string username = 1;
+ string password = 2;
+ string phone    = 3;
+ string email    = 4;
+}
+
+message RegisterReply {
+ enum ReplyType {
+  Success = 0;
+  Fail    = 1;
+ }
+ string    token  = 1;
+ ReplyType status = 2;
+}
+
+message GetRequest {
+    string id = 1;
+}
+
+message GetReply {
+enum ReplyType {
+  Success = 0;
+  Fail    = 1;
+ }
+ string username  = 1;
+ string phone    = 2;
+ string email    = 3;
+ ReplyType status    = 4;
+}
+
