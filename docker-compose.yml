@@ -1,0 +1,32 @@
+version: "2"
+services:
+  comments:
+    build:
+      context: .
+      dockerfile: comments/Dockerfile
+    restart: always
+    volumes:
+    - .:/go/src/github.com/emadghaffari/kit-blog
+    container_name: comments
+    ports:
+    - 8802:8082
+  notificator:
+    build:
+      context: .
+      dockerfile: notificator/Dockerfile
+    container_name: notificator
+    ports:
+    - 8800:8082
+    restart: always
+    volumes:
+    - .:/go/src/github.com/emadghaffari/kit-blog
+  users:
+    build:
+      context: .
+      dockerfile: users/Dockerfile
+    container_name: users
+    ports:
+    - 8801:8082
+    restart: always
+    volumes:
+    - .:/go/src/github.com/emadghaffari/kit-blog
