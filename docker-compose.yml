@@ -6,27 +6,57 @@ services:
       dockerfile: comments/Dockerfile
     restart: always
     volumes:
-    - .:/go/src/github.com/emadghaffari/kit-blog
+      - .:/go/src/github.com/emadghaffari/kit-blog
     container_name: comments
     ports:
-    - 8802:8082
+      - 8802:8082
   notificator:
     build:
       context: .
       dockerfile: notificator/Dockerfile
     container_name: notificator
     ports:
-    - 8800:8082
+      - 8800:8082
     restart: always
     volumes:
-    - .:/go/src/github.com/emadghaffari/kit-blog
+      - .:/go/src/github.com/emadghaffari/kit-blog
   users:
     build:
       context: .
       dockerfile: users/Dockerfile
     container_name: users
     ports:
-    - 8801:8082
+      - 8801:8082
     restart: always
     volumes:
-    - .:/go/src/github.com/emadghaffari/kit-blog
+      - .:/go/src/github.com/emadghaffari/kit-blog
+  etcd:
+    image: soyking/etcd-goreman:3.2.7
+    environment:
+      - CLIENT_ADDR=etcd
+  e3w:
+    image: soyking/e3w:latest
+    volumes:
+      - ./conf/config.default.ini:/app/conf/config.default.ini
+    ports:
+      - "9090:8080"
+    depends_on:
+      - etcd
+  mongo:
+    image: mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    volumes:
+      - mongo:/data/db
+      - mongo-config:/data/configdb
+
+  mongo-express:
+    image: mongo-express
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: example
