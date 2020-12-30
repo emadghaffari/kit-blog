@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/gofrs/uuid"
+	"github.com/opentracing/opentracing-go"
 
 	"github.com/emadghaffari/kit-blog/comments/pkg/grpc/pb"
 )
@@ -29,10 +30,15 @@ type CommentsService interface {
 type basicCommentsService struct{}
 
 func (b *basicCommentsService) Store(ctx context.Context, cm Comment) (id string, err error) {
+	tracer := opentracing.GlobalTracer()
+	span := tracer.StartSpan("store")
+
 	u, err := uuid.NewV4()
 	if err != nil {
 		log.Printf("failed to generate UUID: %v", err)
 	}
+
+	span.Finish()
 	return u.String(), err
 }
 func (b *basicCommentsService) Update(ctx context.Context, cm Comment) (id string, err error) {
