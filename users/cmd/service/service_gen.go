@@ -2,8 +2,6 @@
 package service
 
 import (
-	endpoint "github.com/emadghaffari/kit-blog/users/pkg/endpoint"
-	http1 "github.com/emadghaffari/kit-blog/users/pkg/http"
 	endpoint1 "github.com/go-kit/kit/endpoint"
 	log "github.com/go-kit/kit/log"
 	opentracing "github.com/go-kit/kit/tracing/opentracing"
@@ -11,15 +9,18 @@ import (
 	http "github.com/go-kit/kit/transport/http"
 	group "github.com/oklog/oklog/pkg/group"
 	opentracinggo "github.com/opentracing/opentracing-go"
+
+	endpoint "github.com/emadghaffari/kit-blog/users/pkg/endpoint"
+	http1 "github.com/emadghaffari/kit-blog/users/pkg/http"
 )
 
 func createService(endpoints endpoint.Endpoints) (g *group.Group) {
 	g = &group.Group{}
-	initHttpHandler(endpoints, g)
+	initHTTPpHandler(endpoints, g)
 	initGRPCHandler(endpoints, g)
 	return g
 }
-func defaultHttpOptions(logger log.Logger, tracer opentracinggo.Tracer) map[string][]http.ServerOption {
+func defaultHTTPOptions(logger log.Logger, tracer opentracinggo.Tracer) map[string][]http.ServerOption {
 	options := map[string][]http.ServerOption{
 		"Get":      {http.ServerErrorEncoder(http1.ErrorEncoder), http.ServerErrorLogger(logger), http.ServerBefore(opentracing.HTTPToContext(tracer, "Get", logger))},
 		"Login":    {http.ServerErrorEncoder(http1.ErrorEncoder), http.ServerErrorLogger(logger), http.ServerBefore(opentracing.HTTPToContext(tracer, "Login", logger))},

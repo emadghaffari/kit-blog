@@ -171,8 +171,8 @@ func initCancelInterrupt(g *group.Group) {
 	})
 }
 
-// initHttpHandler func
-func initHttpHandler(endpoints endpoint.Endpoints, g *group.Group) {
+// initHTTPpHandler func
+func initHTTPpHandler(endpoints endpoint.Endpoints, g *group.Group) {
 	httpHandler := pkghttp.NewHTTPHandler(endpoints, map[string][]http1.ServerOption{})
 	httpListener, err := net.Listen("tcp", *httpAddr)
 	if err != nil {
