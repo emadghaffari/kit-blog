@@ -12,11 +12,10 @@ import (
 
 	endpoint1 "github.com/go-kit/kit/endpoint"
 	log "github.com/go-kit/kit/log"
-	prometheus "github.com/go-kit/kit/metrics/prometheus"
+	http1 "github.com/go-kit/kit/transport/http"
 	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	group "github.com/oklog/oklog/pkg/group"
 	opentracinggo "github.com/opentracing/opentracing-go"
-	prometheus1 "github.com/prometheus/client_golang/prometheus"
 	promhttp "github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
@@ -28,6 +27,7 @@ import (
 	endpoint "github.com/emadghaffari/kit-blog/users/pkg/endpoint"
 	grpc "github.com/emadghaffari/kit-blog/users/pkg/grpc"
 	pb "github.com/emadghaffari/kit-blog/users/pkg/grpc/pb"
+	pkghttp "github.com/emadghaffari/kit-blog/users/pkg/http"
 	service "github.com/emadghaffari/kit-blog/users/pkg/service"
 )
 
@@ -124,20 +124,20 @@ func initGRPCHandler(endpoints endpoint.Endpoints, g *group.Group) {
 }
 func getServiceMiddleware(logger log.Logger) (mw []service.Middleware) {
 	mw = []service.Middleware{}
-	mw = addDefaultServiceMiddleware(logger, mw)
+	// mw = addDefaultServiceMiddleware(logger, mw)
 	// Append your middleware here
 
 	return
 }
 func getEndpointMiddleware(logger log.Logger) (mw map[string][]endpoint1.Middleware) {
 	mw = map[string][]endpoint1.Middleware{}
-	duration := prometheus.NewSummaryFrom(prometheus1.SummaryOpts{
-		Help:      "Request duration in seconds.",
-		Name:      "request_duration_seconds",
-		Namespace: "example",
-		Subsystem: "users",
-	}, []string{"method", "success"})
-	addDefaultEndpointMiddleware(logger, duration, mw)
+	// duration := prometheus.NewSummaryFrom(prometheus1.SummaryOpts{
+	// 	Help:      "Request duration in seconds.",
+	// 	Name:      "request_duration_seconds",
+	// 	Namespace: "example",
+	// 	Subsystem: "users",
+	// }, []string{"method", "success"})
+	// addDefaultEndpointMiddleware(logger, duration, mw)
 	// Add you endpoint middleware here
 
 	return
@@ -168,5 +168,20 @@ func initCancelInterrupt(g *group.Group) {
 		}
 	}, func(error) {
 		close(cancelInterrupt)
+	})
+}
+
+// initHttpHandler func
+func initHttpHandler(endpoints endpoint.Endpoints, g *group.Group) {
+	httpHandler := pkghttp.NewHTTPHandler(endpoints, map[string][]http1.ServerOption{})
+	httpListener, err := net.Listen("tcp", *httpAddr)
+	if err != nil {
+		logger.Log("transport", "HTTP", "during", "Listen", "err", err)
+	}
+	g.Add(func() error {
+		logger.Log("transport", "HTTP", "addr", *httpAddr)
+		return http.Serve(httpListener, httpHandler)
+	}, func(error) {
+		httpListener.Close()
 	})
 }

@@ -110,10 +110,10 @@ type GetRequest struct {
 
 // GetResponse collects the response parameters for the Get method.
 type GetResponse struct {
-	S0 string `json:"s0"`
-	S1 string `json:"s1"`
-	S2 string `json:"s2"`
-	E1 error  `json:"e1"`
+	S0 string `json:"username"`
+	S1 string `json:"email"`
+	S2 string `json:"phone"`
+	E1 error  `json:"error"`
 }
 
 // MakeGetEndpoint returns an endpoint that invokes Get on the service.
@@ -136,11 +136,11 @@ func (r GetResponse) Failed() error {
 }
 
 // Get implements Service. Primarily useful in a client.
-func (e Endpoints) Get(ctx context.Context, id string) (s0 string, e1 error) {
+func (e Endpoints) Get(ctx context.Context, id string) (s0 string, s1 string, s2 string, e1 error) {
 	request := GetRequest{Id: id}
 	response, err := e.GetEndpoint(ctx, request)
 	if err != nil {
 		return
 	}
-	return response.(GetResponse).S0, response.(GetResponse).E1
+	return response.(GetResponse).S0, response.(GetResponse).S1, response.(GetResponse).S2, response.(GetResponse).E1
 }
