@@ -81,6 +81,7 @@ func Run() {
 	tracer, closer, err = cfg.NewTracer(
 		jaegercfg.Logger(jLogger),
 		jaegercfg.Metrics(jMetricsFactory),
+		jaegercfg.ZipkinSharedRPCSpan(true),
 	)
 	if err != nil {
 		logger.Log("during", "Listen", "jaeger", "err", err)

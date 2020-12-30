@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/gofrs/uuid"
+	"github.com/opentracing/opentracing-go"
 )
 
 // NotificatorService describes the service.
@@ -20,6 +21,17 @@ func (b *basicNotificatorService) Send(ctx context.Context, to string, body stri
 	if err != nil {
 		log.Printf("failed to generate UUID: %v", err)
 	}
+
+	if parent := opentracing.SpanFromContext(ctx); parent != nil {
+		pctx := parent.Context()
+		if tracer := opentracing.GlobalTracer(); tracer != nil {
+			span := tracer.StartSpan("notification", opentracing.ChildOf(pctx))
+			defer span.Finish()
+
+			span.SetTag("id NOTIF", u.String())
+		}
+	}
+
 	return u.String(), err
 }
 

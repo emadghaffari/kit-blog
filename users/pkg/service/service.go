@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
+	"github.com/opentracing/opentracing-go"
 	etcd "go.etcd.io/etcd/client/v2"
 	"google.golang.org/grpc"
 
@@ -25,10 +27,21 @@ type basicUsersService struct {
 }
 
 func (b *basicUsersService) Login(ctx context.Context, username string, password string) (s0 string, e1 error) {
+	tracer := opentracing.GlobalTracer()
+	span := tracer.StartSpan("login")
+	defer span.Finish()
+
 	u, err := uuid.NewV4()
 	if err != nil {
 		log.Printf("failed to generate UUID: %v", err)
 	}
+
+	ct := opentracing.ContextWithSpan(context.Background(), span)
+	_, err = b.notificatorClient.Send(ct, &pb.SendRequest{To: "09355960597", Body: "Hi Welcome."})
+	if err != nil {
+		log.Printf("failed to send notif: %v", err)
+	}
+
 	return u.String(), err
 }
 func (b *basicUsersService) Register(ctx context.Context, username string, password string, email string, phone string) (s0 string, e1 error) {
@@ -69,8 +82,10 @@ func NewBasicUsersService() UsersService {
 
 	// notificator from etcd database
 	log.Printf("---------------%v-----------------", en.Node.Value)
-	// conn, err := grpc.Dial(fmt.Sprintf("%v", en.Node.Value), grpc.WithInsecure())
-	conn, err := grpc.Dial("localhost:8082", grpc.WithInsecure())
+	tracer := opentracing.GlobalTracer()
+	conn, err := grpc.Dial("localhost:8082",
+		grpc.WithInsecure(),
+		grpc.WithUnaryInterceptor(otgrpc.OpenTracingClientInterceptor(tracer, otgrpc.LogPayloads())))
 	if err != nil {
 		log.Printf("unable to connect to notificator service, %s", err.Error())
 		return new(basicUsersService)
