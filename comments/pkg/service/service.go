@@ -50,13 +50,13 @@ func (b *basicCommentsService) Update(ctx context.Context, cm Comment) (id strin
 }
 func (b *basicCommentsService) List(ctx context.Context, postID string) (cms []*pb.Comment, err error) {
 	return []*pb.Comment{
-		&pb.Comment{
+		{
 			PostID: "1",
 			UserID: "2",
 			Title:  "T",
 			Body:   "B",
 		},
-		&pb.Comment{
+		{
 			PostID: "1",
 			UserID: "2",
 			Title:  "T",
