@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	endpoint1 "github.com/go-kit/kit/endpoint"
 	log "github.com/go-kit/kit/log"
@@ -21,6 +23,7 @@ import (
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 	jaegerlog "github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-lib/metrics"
+	etcd "go.etcd.io/etcd/client/v2"
 	grpc1 "google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
@@ -95,6 +98,12 @@ func Run() {
 	g := createService(eps)
 	initMetricsEndpoint(g)
 	initCancelInterrupt(g)
+	_, err = initEtcd(logger)
+	if err != nil {
+		logger.Log(err)
+		return
+	}
+
 	logger.Log("exit", g.Run())
 
 }
@@ -184,4 +193,34 @@ func initHTTPpHandler(endpoints endpoint.Endpoints, g *group.Group) {
 	}, func(error) {
 		httpListener.Close()
 	})
+}
+
+func initEtcd(logger log.Logger) (*etcd.Response, error) {
+
+	var (
+		prefix   = "/blog/users/"
+		instance = "localhost:1382"
+		key      = prefix + "users"
+	)
+
+	cfg := etcd.Config{
+		Endpoints:               []string{"http://etcd:2379"},
+		Transport:               etcd.DefaultTransport,
+		HeaderTimeoutPerRequest: time.Second,
+	}
+	c, err := etcd.New(cfg)
+	if err != nil {
+		logger.Log("etcd start users")
+		return nil, err
+	}
+	kapi := etcd.NewKeysAPI(c)
+	resp, err := kapi.Set(context.Background(), key, instance, &etcd.SetOptions{})
+	if err != nil {
+		logger.Log("etcd", "cannot", "store", "the", "key", "and", "value", "for", "users", err)
+		return nil, err
+	}
+
+	// resp, err := kapi.Create(context.Background(), "key", instance)
+	logger.Log("users registerd in etcd")
+	return resp, nil
 }

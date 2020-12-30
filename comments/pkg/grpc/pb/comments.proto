@@ -16,6 +16,12 @@ message comment{
     string userID = 2;
     string title = 3;
     string body = 4;
+    oneof username {
+        string name = 5;
+    }
+    oneof useremail {
+        string email = 6;
+    }
 }
 
 message StoreRequest {
@@ -64,4 +70,3 @@ message ListReply {
     string status = 2;
 
 }
-

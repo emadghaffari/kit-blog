@@ -98,8 +98,27 @@ func (b *basicUsersService) Register(ctx context.Context, username string, passw
 }
 
 func (b *basicUsersService) Get(ctx context.Context, id string) (username, email, phone string, err error) {
-	// TODO implement the business logic of Get
-	return "Emad", "emadghaffariii@gmail.com", "09355980597", nil
+
+	if parent := opentracing.SpanFromContext(ctx); parent != nil {
+		pctx := parent.Context()
+		if tracer := opentracing.GlobalTracer(); tracer != nil {
+			span := tracer.StartSpan("get_user", opentracing.ChildOf(pctx))
+			defer span.Finish()
+		}
+	}
+
+	user := model.User{}
+	oid, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return "", "", "", err
+	}
+	values := bson.M{"_id": oid}
+	res := b.db.FindOne(context.Background(), values)
+	if err := res.Decode(&user); err != nil {
+		return "", "", "", err
+	}
+
+	return user.Username, user.Email, user.Phone, nil
 }
 
 // NewBasicUsersService returns a naive, stateless implementation of UsersService.
@@ -173,7 +192,7 @@ func initEtcd() (*grpc.ClientConn, error) {
 	// notificator from etcd database
 	log.Printf("---------------%v-----------------", en.Node.Value)
 	tracer := opentracing.GlobalTracer()
-	conn, err := grpc.Dial("localhost:8082",
+	conn, err := grpc.Dial(en.Node.Value,
 		grpc.WithInsecure(),
 		grpc.WithUnaryInterceptor(otgrpc.OpenTracingClientInterceptor(tracer, otgrpc.LogPayloads())))
 	if err != nil {
