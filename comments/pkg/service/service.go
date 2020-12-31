@@ -7,13 +7,13 @@ import (
 
 	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	"github.com/opentracing/opentracing-go"
-	etcd "go.etcd.io/etcd/client/v2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/grpc"
 
+	"github.com/emadghaffari/kit-blog/comments/config"
 	"github.com/emadghaffari/kit-blog/comments/pkg/grpc/pb"
 	us "github.com/emadghaffari/kit-blog/users/pkg/grpc/pb"
 )
@@ -124,7 +124,7 @@ func (b *basicCommentsService) List(ctx context.Context, postID string) (cms []*
 
 // NewBasicCommentsService returns a naive, stateless implementation of CommentsService.
 func NewBasicCommentsService() CommentsService {
-	conn, err := initEtcd()
+	conn, err := initUsers()
 	if err != nil {
 		return new(basicCommentsService)
 	}
@@ -169,32 +169,10 @@ func initMongoDB() (*mongo.Collection, error) {
 
 }
 
-func initEtcd() (*grpc.ClientConn, error) {
-	var (
-		prefix = "/blog/users/users"
-	)
-	cfg := etcd.Config{
-		Endpoints: []string{"http://etcd:2379"},
-		Transport: etcd.DefaultTransport,
-		// set timeout per request to fail fast when the target endpoint is unavailable
-		HeaderTimeoutPerRequest: time.Second,
-	}
-	c, err := etcd.New(cfg)
-	if err != nil {
-		log.Printf("unable to connect to etcd: %s", err.Error())
-		return nil, err
-	}
-	kapi := etcd.NewKeysAPI(c)
-	en, err := kapi.Get(context.Background(), prefix, &etcd.GetOptions{})
-	if err != nil {
-		log.Printf("unable to get entries from etcd: %s", err)
-		return nil, err
-	}
-
-	// users from etcd database
-	log.Printf("---------------%v-----------------", en.Node.Value)
+func initUsers() (*grpc.ClientConn, error) {
+	// Users from etcd database
 	tracer := opentracing.GlobalTracer()
-	conn, err := grpc.Dial(en.Node.Value,
+	conn, err := grpc.Dial(config.Confs.Users.Host,
 		grpc.WithInsecure(),
 		grpc.WithUnaryInterceptor(otgrpc.OpenTracingClientInterceptor(tracer, otgrpc.LogPayloads())))
 	if err != nil {

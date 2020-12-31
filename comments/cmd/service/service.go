@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -10,11 +9,11 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	endpoint1 "github.com/go-kit/kit/endpoint"
 	log "github.com/go-kit/kit/log"
 	prometheus "github.com/go-kit/kit/metrics/prometheus"
+	"github.com/hashicorp/vault/api"
 	group "github.com/oklog/oklog/pkg/group"
 	opentracinggo "github.com/opentracing/opentracing-go"
 	prometheus1 "github.com/prometheus/client_golang/prometheus"
@@ -23,10 +22,10 @@ import (
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 	jaegerlog "github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-lib/metrics"
-	etcd "go.etcd.io/etcd/client/v2"
 	grpc1 "google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
+	"github.com/emadghaffari/kit-blog/comments/config"
 	endpoint "github.com/emadghaffari/kit-blog/comments/pkg/endpoint"
 	grpc "github.com/emadghaffari/kit-blog/comments/pkg/grpc"
 	pb "github.com/emadghaffari/kit-blog/comments/pkg/grpc/pb"
@@ -92,18 +91,18 @@ func Run() {
 	opentracinggo.SetGlobalTracer(tracer)
 	defer closer.Close()
 
+	// init vault
+	if err := initVault(); err != nil {
+		logger.Log(err)
+		return
+	}
 	svc := service.New(getServiceMiddleware(logger))
 	eps := endpoint.New(svc, getEndpointMiddleware(logger))
 	g := createService(eps)
 	initMetricsEndpoint(g)
 	initCancelInterrupt(g)
-	_, err = initEtcd(logger)
-	if err != nil {
-		logger.Log(err)
-		return
-	}
-	logger.Log("exit", g.Run())
 
+	logger.Log("exit", g.Run())
 }
 func initGRPCHandler(endpoints endpoint.Endpoints, g *group.Group) {
 	options := defaultGRPCOptions(logger, tracer)
@@ -174,32 +173,48 @@ func initCancelInterrupt(g *group.Group) {
 	})
 }
 
-func initEtcd(logger log.Logger) (*etcd.Response, error) {
+func initVault() error {
+	config.Confs.Vault.Address = "http://vault:8200"
+	config.Confs.Vault.Token = "s.4TnB3ozvkZYlQRTLZAteVivl"
+	config.Confs.Comments.Path = "blog/comments"
+	config.Confs.Comments.DebugAddr = *debugAddr
+	config.Confs.Comments.HTTPAddr = *httpAddr
+	config.Confs.Comments.GrpcAddr = *grpcAddr
+	config.Confs.Comments.ThriftAddr = *thriftAddr
+	config.Confs.Comments.Host = "localhost"
+	config.Confs.Users.Path = "blog/users"
 
-	var (
-		prefix   = "/blog/comments/"
-		instance = "localhost:6482"
-		key      = prefix + "comments"
-	)
-
-	cfg := etcd.Config{
-		Endpoints:               []string{"http://etcd:2379"},
-		Transport:               etcd.DefaultTransport,
-		HeaderTimeoutPerRequest: time.Second,
+	confs := &api.Config{
+		Address: config.Confs.Vault.Address,
 	}
-	c, err := etcd.New(cfg)
+	client, err := api.NewClient(confs)
 	if err != nil {
-		logger.Log("etcd start comments")
-		return nil, err
+		logger.Log(err)
+		return err
 	}
-	kapi := etcd.NewKeysAPI(c)
-	resp, err := kapi.Set(context.Background(), key, instance, &etcd.SetOptions{})
+	client.SetToken(config.Confs.Vault.Token)
+	c := client.Logical()
+	config.Confs.Vault.Logical = c
+
+	// Read notif path
+	users, err := c.Read(config.Confs.Users.Path)
 	if err != nil {
-		logger.Log("etcd", "cannot", "store", "the", "key", "and", "value", "for", "comments", err)
-		return nil, err
+		logger.Log(err)
+		return err
+	}
+	config.Confs.Users.GrpcAddr = users.Data["grpc"].(string)
+
+	// Write Comments Path
+	_, err = c.Write(config.Confs.Comments.Path, map[string]interface{}{
+		"debug":  config.Confs.Comments.Host + config.Confs.Comments.DebugAddr,
+		"http":   config.Confs.Comments.Host + config.Confs.Comments.HTTPAddr,
+		"grpc":   config.Confs.Comments.Host + config.Confs.Comments.GrpcAddr,
+		"thrift": config.Confs.Comments.Host + config.Confs.Comments.ThriftAddr,
+	})
+	if err != nil {
+		logger.Log(err)
+		return err
 	}
 
-	// resp, err := kapi.Create(context.Background(), "key", instance)
-	logger.Log("comments registerd in etcd")
-	return resp, nil
+	return nil
 }
