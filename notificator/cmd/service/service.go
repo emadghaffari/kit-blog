@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -10,12 +9,12 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	endpoint1 "github.com/go-kit/kit/endpoint"
 	log "github.com/go-kit/kit/log"
 	prometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
+	"github.com/hashicorp/vault/api"
 	group "github.com/oklog/oklog/pkg/group"
 	opentracinggo "github.com/opentracing/opentracing-go"
 	prometheus1 "github.com/prometheus/client_golang/prometheus"
@@ -24,10 +23,10 @@ import (
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 	jaegerlog "github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-lib/metrics"
-	etcd "go.etcd.io/etcd/client/v2"
 	grpc1 "google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
+	"github.com/emadghaffari/kit-blog/notificator/config"
 	endpoint "github.com/emadghaffari/kit-blog/notificator/pkg/endpoint"
 	grpc "github.com/emadghaffari/kit-blog/notificator/pkg/grpc"
 	pb "github.com/emadghaffari/kit-blog/notificator/pkg/grpc/pb"
@@ -93,17 +92,18 @@ func Run() {
 	opentracinggo.SetGlobalTracer(tracer)
 	defer closer.Close()
 
+	// add etcd service
+	err = initVault()
+	if err != nil {
+		logger.Log(err)
+		return
+	}
 	svc := service.New(getServiceMiddleware(logger))
 	eps := endpoint.New(svc, getEndpointMiddleware(logger))
 	g := createService(eps)
 	initMetricsEndpoint(g)
 	initCancelInterrupt(g)
-	// add etcd service
-	_, err = initEtcd(logger)
-	if err != nil {
-		logger.Log(err)
-		return
-	}
+
 	logger.Log("exit", g.Run())
 
 }
@@ -180,32 +180,39 @@ func initCancelInterrupt(g *group.Group) {
 	})
 }
 
-func initEtcd(logger log.Logger) (*etcd.Response, error) {
+func initVault() error {
+	config.Confs.Vault.Address = "http://vault:8200"
+	config.Confs.Vault.Token = "s.4TnB3ozvkZYlQRTLZAteVivl"
+	config.Confs.Notifs.Path = "blog/notificator"
+	config.Confs.Notifs.DebugAddr = *debugAddr
+	config.Confs.Notifs.HTTPAddr = *httpAddr
+	config.Confs.Notifs.GrpcAddr = *grpcAddr
+	config.Confs.Notifs.ThriftAddr = *thriftAddr
+	config.Confs.Notifs.Host = "localhost"
 
-	var (
-		prefix   = "/blog/notificator/"
-		instance = "localhost:8082"
-		key      = prefix + "notificator"
-	)
-
-	cfg := etcd.Config{
-		Endpoints:               []string{"http://etcd:2379"},
-		Transport:               etcd.DefaultTransport,
-		HeaderTimeoutPerRequest: time.Second,
+	confs := &api.Config{
+		Address: config.Confs.Vault.Address,
 	}
-	c, err := etcd.New(cfg)
+	client, err := api.NewClient(confs)
 	if err != nil {
-		logger.Log("etcd start notificator")
-		return nil, err
+		logger.Log(err)
+		return err
 	}
-	kapi := etcd.NewKeysAPI(c)
-	resp, err := kapi.Set(context.Background(), key, instance, &etcd.SetOptions{})
+	client.SetToken(config.Confs.Vault.Token)
+	c := client.Logical()
+	config.Confs.Vault.Logical = c
+
+	// Write Notifs Path
+	_, err = c.Write(config.Confs.Notifs.Path, map[string]interface{}{
+		"debug":  config.Confs.Notifs.Host + config.Confs.Notifs.DebugAddr,
+		"http":   config.Confs.Notifs.Host + config.Confs.Notifs.HTTPAddr,
+		"grpc":   config.Confs.Notifs.Host + config.Confs.Notifs.GrpcAddr,
+		"thrift": config.Confs.Notifs.Host + config.Confs.Notifs.ThriftAddr,
+	})
 	if err != nil {
-		logger.Log("etcd", "cannot", "store", "the", "key", "and", "value", "for", "notificator", err)
-		return nil, err
+		logger.Log(err)
+		return err
 	}
 
-	// resp, err := kapi.Create(context.Background(), "key", instance)
-	logger.Log("notificator registerd in etcd")
-	return resp, nil
+	return nil
 }
