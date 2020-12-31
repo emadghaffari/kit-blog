@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package pb;
+
+
+
+//The Posts service definition.
+service Posts {
+ rpc Store  (StoreRequest ) returns (StoreReply );
+ rpc Update (UpdateRequest) returns (UpdateReply);
+ rpc List   (ListRequest  ) returns (ListReply  );
+ rpc Delete (DeleteRequest) returns (DeleteReply);
+}
+
+message post {
+    string token        = 1;
+    string title        = 2;
+	string slug         = 3;
+	string description  = 4;
+	string body         = 5;
+	string header       = 6;
+    oneof createdAt {
+        string time = 7;
+    }
+}
+
+message StoreRequest {
+    post post = 1;
+}
+
+message StoreReply {
+    enum ReplyType {
+    Success = 0;
+    Fail    = 1;
+    }
+    string    response  = 1;
+    ReplyType status    = 2;
+}
+
+message UpdateRequest {
+    post post = 1;
+}
+
+message UpdateReply {
+    enum ReplyType {
+    Success = 0;
+    Fail    = 1;
+    }
+    string    response  = 1;
+    ReplyType status    = 2;
+}
+
+message ListRequest {
+    post post = 1;
+}
+
+message ListReply {
+   repeated post post = 1;
+}
+
+message DeleteRequest {
+    post post = 1;
+}
+
+message DeleteReply {
+    enum ReplyType {
+    Success = 0;
+    Fail    = 1;
+    }
+    string    response  = 1;
+    ReplyType status    = 2;
+}
+
