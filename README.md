@@ -11,14 +11,14 @@ kit g s users  --dmw -t grpc
 
 
 
-<!-- WATCHER -->
-<!-- watcher -run github.com/emadghaffari/kit-blog/notificator/cmd  -watch github.com/emadghaffari/kit-bg/notificator -->
-<!-- PORT IS: :8080, :8081, :8082, :8083 -->
+## WATCHER
+watcher -run github.com/emadghaffari/kit-blog/notificator/cmd  -watch github.com/emadghaffari/kit-bg/notificator
 
+watcher -run github.com/emadghaffari/kit-blog/users/cmd  -watch github.com/emadghaffari/kit-bg/users
 
-<!-- watcher -run github.com/emadghaffari/kit-blog/users/cmd  -watch github.com/emadghaffari/kit-bg/users -->
-<!-- PORT IS: :1380, :1381, :1382, :1383 -->
+watcher -run github.com/emadghaffari/kit-blog/comments/cmd  -watch github.com/emadghaffari/kit-bg/comments
 
+## configs:
+for config management we use vault and consul
 
-<!-- watcher -run github.com/emadghaffari/kit-blog/comments/cmd  -watch github.com/emadghaffari/kit-bg/comments -->
-<!-- PORT IS: :6480, :6481, :6482, :6483 -->
+REPO: https://github.com/testdrivenio/vault-consul-docker
