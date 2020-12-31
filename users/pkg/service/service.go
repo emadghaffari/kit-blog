@@ -8,7 +8,6 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	"github.com/opentracing/opentracing-go"
-	etcd "go.etcd.io/etcd/client/v2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -17,6 +16,7 @@ import (
 
 	cryptoutils "github.com/emadghaffari/api-teacher/utils/cryptoUtils"
 	"github.com/emadghaffari/kit-blog/notificator/pkg/grpc/pb"
+	"github.com/emadghaffari/kit-blog/users/config"
 	"github.com/emadghaffari/kit-blog/users/pkg/model"
 )
 
@@ -123,7 +123,7 @@ func (b *basicUsersService) Get(ctx context.Context, id string) (username, email
 
 // NewBasicUsersService returns a naive, stateless implementation of UsersService.
 func NewBasicUsersService() UsersService {
-	conn, err := initEtcd()
+	conn, err := initNotificator()
 	if err != nil {
 		return new(basicUsersService)
 	}
@@ -167,32 +167,11 @@ func initMongoDB() (*mongo.Collection, error) {
 	return users, nil
 
 }
-func initEtcd() (*grpc.ClientConn, error) {
-	var (
-		prefix = "/blog/notificator/notificator"
-	)
-	cfg := etcd.Config{
-		Endpoints: []string{"http://etcd:2379"},
-		Transport: etcd.DefaultTransport,
-		// set timeout per request to fail fast when the target endpoint is unavailable
-		HeaderTimeoutPerRequest: time.Second,
-	}
-	c, err := etcd.New(cfg)
-	if err != nil {
-		log.Printf("unable to connect to etcd: %s", err.Error())
-		return nil, err
-	}
-	kapi := etcd.NewKeysAPI(c)
-	en, err := kapi.Get(context.Background(), prefix, &etcd.GetOptions{})
-	if err != nil {
-		log.Printf("unable to get entries from etcd: %s", err)
-		return nil, err
-	}
 
+func initNotificator() (*grpc.ClientConn, error) {
 	// notificator from etcd database
-	log.Printf("---------------%v-----------------", en.Node.Value)
 	tracer := opentracing.GlobalTracer()
-	conn, err := grpc.Dial(en.Node.Value,
+	conn, err := grpc.Dial(config.Confs.Notifs.Host,
 		grpc.WithInsecure(),
 		grpc.WithUnaryInterceptor(otgrpc.OpenTracingClientInterceptor(tracer, otgrpc.LogPayloads())))
 	if err != nil {

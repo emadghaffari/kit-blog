@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -10,12 +9,12 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	endpoint1 "github.com/go-kit/kit/endpoint"
 	log "github.com/go-kit/kit/log"
 	http1 "github.com/go-kit/kit/transport/http"
 	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
+	"github.com/hashicorp/vault/api"
 	group "github.com/oklog/oklog/pkg/group"
 	opentracinggo "github.com/opentracing/opentracing-go"
 	promhttp "github.com/prometheus/client_golang/prometheus/promhttp"
@@ -23,10 +22,10 @@ import (
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 	jaegerlog "github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-lib/metrics"
-	etcd "go.etcd.io/etcd/client/v2"
 	grpc1 "google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
+	"github.com/emadghaffari/kit-blog/users/config"
 	endpoint "github.com/emadghaffari/kit-blog/users/pkg/endpoint"
 	grpc "github.com/emadghaffari/kit-blog/users/pkg/grpc"
 	pb "github.com/emadghaffari/kit-blog/users/pkg/grpc/pb"
@@ -93,16 +92,15 @@ func Run() {
 	opentracinggo.SetGlobalTracer(tracer)
 	defer closer.Close()
 
+	// init vault database
+	if err := initVault(); err != nil {
+		logger.Log("during", "Listen", "vault", "err", err)
+	}
 	svc := service.New(getServiceMiddleware(logger))
 	eps := endpoint.New(svc, getEndpointMiddleware(logger))
 	g := createService(eps)
 	initMetricsEndpoint(g)
 	initCancelInterrupt(g)
-	_, err = initEtcd(logger)
-	if err != nil {
-		logger.Log(err)
-		return
-	}
 
 	logger.Log("exit", g.Run())
 
@@ -195,32 +193,48 @@ func initHTTPpHandler(endpoints endpoint.Endpoints, g *group.Group) {
 	})
 }
 
-func initEtcd(logger log.Logger) (*etcd.Response, error) {
+func initVault() error {
+	config.Confs.Vault.Address = "http://vault:8200"
+	config.Confs.Vault.Token = "s.4TnB3ozvkZYlQRTLZAteVivl"
+	config.Confs.Notifs.Path = "blog/notificator"
+	config.Confs.Users.Host = "localhost"
+	config.Confs.Users.Path = "blog/users"
+	config.Confs.Users.DebugAddr = *debugAddr
+	config.Confs.Users.HTTPAddr = *httpAddr
+	config.Confs.Users.GrpcAddr = *grpcAddr
+	config.Confs.Users.ThriftAddr = *thriftAddr
 
-	var (
-		prefix   = "/blog/users/"
-		instance = "localhost:1382"
-		key      = prefix + "users"
-	)
-
-	cfg := etcd.Config{
-		Endpoints:               []string{"http://etcd:2379"},
-		Transport:               etcd.DefaultTransport,
-		HeaderTimeoutPerRequest: time.Second,
+	confs := &api.Config{
+		Address: config.Confs.Vault.Address,
 	}
-	c, err := etcd.New(cfg)
+	client, err := api.NewClient(confs)
 	if err != nil {
-		logger.Log("etcd start users")
-		return nil, err
+		logger.Log(err)
+		return err
 	}
-	kapi := etcd.NewKeysAPI(c)
-	resp, err := kapi.Set(context.Background(), key, instance, &etcd.SetOptions{})
+	client.SetToken(config.Confs.Vault.Token)
+	c := client.Logical()
+	config.Confs.Vault.Logical = c
+
+	// Read notif path
+	notifs, err := c.Read(config.Confs.Notifs.Path)
 	if err != nil {
-		logger.Log("etcd", "cannot", "store", "the", "key", "and", "value", "for", "users", err)
-		return nil, err
+		logger.Log(err)
+		return err
+	}
+	config.Confs.Notifs.Host = notifs.Data["grpc"].(string)
+
+	// Write users Path
+	_, err = c.Write(config.Confs.Users.Path, map[string]interface{}{
+		"debug":  config.Confs.Users.Host + config.Confs.Users.DebugAddr,
+		"http":   config.Confs.Users.Host + config.Confs.Users.HTTPAddr,
+		"grpc":   config.Confs.Users.Host + config.Confs.Users.GrpcAddr,
+		"thrift": config.Confs.Users.Host + config.Confs.Users.ThriftAddr,
+	})
+	if err != nil {
+		logger.Log(err)
+		return err
 	}
 
-	// resp, err := kapi.Create(context.Background(), "key", instance)
-	logger.Log("users registerd in etcd")
-	return resp, nil
+	return nil
 }
