@@ -5,8 +5,8 @@ import (
 
 	log "github.com/go-kit/kit/log"
 
-	model "github.com/emadghaffari/kit-blog/posts/model"
 	"github.com/emadghaffari/kit-blog/posts/pkg/grpc/pb"
+	model "github.com/emadghaffari/kit-blog/posts/pkg/model"
 )
 
 // Middleware describes a service middleware.

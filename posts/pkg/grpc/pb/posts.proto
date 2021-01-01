@@ -13,14 +13,15 @@ service Posts {
 }
 
 message post {
-    string token        = 1;
-    string title        = 2;
-	string slug         = 3;
-	string description  = 4;
-	string body         = 5;
-	string header       = 6;
+    string id           = 1;
+    string token        = 2;
+    string title        = 3;
+	string slug         = 4;
+	string description  = 5;
+	string body         = 6;
+	string header       = 7;
     oneof createdAt {
-        string time = 7;
+        string time = 8;
     }
 }
 

@@ -6,9 +6,9 @@ import (
 	grpc "github.com/go-kit/kit/transport/grpc"
 	context1 "golang.org/x/net/context"
 
-	"github.com/emadghaffari/kit-blog/posts/model"
 	endpoint "github.com/emadghaffari/kit-blog/posts/pkg/endpoint"
 	pb "github.com/emadghaffari/kit-blog/posts/pkg/grpc/pb"
+	"github.com/emadghaffari/kit-blog/posts/pkg/model"
 )
 
 // makeStoreHandler creates the handler logic
@@ -67,6 +67,7 @@ func decodeUpdateRequest(_ context.Context, r interface{}) (interface{}, error) 
 
 	return endpoint.UpdateRequest{
 		Post: model.Post{
+			ID:          req.Post.Id,
 			Token:       &req.Post.Token,
 			Title:       req.Post.Title,
 			Body:        req.Post.Body,
@@ -155,6 +156,7 @@ func decodeDeleteRequest(_ context.Context, r interface{}) (interface{}, error) 
 
 	return endpoint.DeleteRequest{
 		Post: model.Post{
+			ID:          req.Post.Id,
 			Token:       &req.Post.Token,
 			Title:       req.Post.Title,
 			Body:        req.Post.Body,

@@ -5,8 +5,8 @@ import (
 
 	endpoint "github.com/go-kit/kit/endpoint"
 
-	model "github.com/emadghaffari/kit-blog/posts/model"
 	"github.com/emadghaffari/kit-blog/posts/pkg/grpc/pb"
+	model "github.com/emadghaffari/kit-blog/posts/pkg/model"
 	service "github.com/emadghaffari/kit-blog/posts/pkg/service"
 )
 

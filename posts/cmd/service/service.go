@@ -23,6 +23,7 @@ import (
 	jaegerlog "github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-lib/metrics"
 	grpc1 "google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 
 	"github.com/emadghaffari/kit-blog/posts/config"
 	endpoint "github.com/emadghaffari/kit-blog/posts/pkg/endpoint"
@@ -115,6 +116,7 @@ func initGRPCHandler(endpoints endpoint.Endpoints, g *group.Group) {
 	g.Add(func() error {
 		logger.Log("transport", "gRPC", "addr", *grpcAddr)
 		baseServer := grpc1.NewServer()
+		reflection.Register(baseServer)
 		pb.RegisterPostsServer(baseServer, grpcServer)
 		return baseServer.Serve(grpcListener)
 	}, func(error) {
