@@ -29,5 +29,16 @@ type (
 			Token   string
 			Logical *api.Logical
 		}
+		JWT struct {
+			Secret  string
+			RSecret string
+			Path    string
+		}
+		Redis struct {
+			Path     string
+			Host     string
+			Password string
+			DB       string
+		}
 	}
 )

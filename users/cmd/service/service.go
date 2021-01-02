@@ -30,6 +30,7 @@ import (
 	grpc "github.com/emadghaffari/kit-blog/users/pkg/grpc"
 	pb "github.com/emadghaffari/kit-blog/users/pkg/grpc/pb"
 	pkghttp "github.com/emadghaffari/kit-blog/users/pkg/http"
+	"github.com/emadghaffari/kit-blog/users/pkg/redis"
 	service "github.com/emadghaffari/kit-blog/users/pkg/service"
 )
 
@@ -101,6 +102,7 @@ func Run() {
 	g := createService(eps)
 	initMetricsEndpoint(g)
 	initCancelInterrupt(g)
+	initRedis()
 
 	logger.Log("exit", g.Run())
 
@@ -131,8 +133,7 @@ func initGRPCHandler(endpoints endpoint.Endpoints, g *group.Group) {
 }
 func getServiceMiddleware(logger log.Logger) (mw []service.Middleware) {
 	mw = []service.Middleware{}
-	// mw = addDefaultServiceMiddleware(logger, mw)
-	// Append your middleware here
+	mw = append(mw, service.LoggingMiddleware(logger))
 
 	return
 }
@@ -146,6 +147,7 @@ func getEndpointMiddleware(logger log.Logger) (mw map[string][]endpoint1.Middlew
 	// }, []string{"method", "success"})
 	// addDefaultEndpointMiddleware(logger, duration, mw)
 	// Add you endpoint middleware here
+	addEndpointMiddlewareToAllMethods(mw, endpoint1.Middleware(func(e endpoint1.Endpoint) endpoint1.Endpoint { return e }))
 
 	return
 }
@@ -199,6 +201,8 @@ func initVault() error {
 	config.Confs.Notifs.Path = "blog/notificator"
 	config.Confs.Users.Host = "localhost"
 	config.Confs.Users.Path = "blog/users"
+	config.Confs.JWT.Path = "blog/jwt/secret"
+	config.Confs.Redis.Path = "blog/redis"
 	config.Confs.Users.DebugAddr = *debugAddr
 	config.Confs.Users.HTTPAddr = *httpAddr
 	config.Confs.Users.GrpcAddr = *grpcAddr
@@ -224,6 +228,24 @@ func initVault() error {
 	}
 	config.Confs.Notifs.Host = notifs.Data["grpc"].(string)
 
+	// Read jwt secret
+	jwt, err := c.Read(config.Confs.JWT.Path)
+	if err != nil {
+		logger.Log(err)
+		return err
+	}
+	config.Confs.JWT.Secret = jwt.Data["jwt"].(string)
+	config.Confs.JWT.RSecret = jwt.Data["rjwt"].(string)
+
+	// Read jwt secret
+	rd, err := c.Read(config.Confs.Redis.Path)
+	if err != nil {
+		logger.Log(err)
+		return err
+	}
+	config.Confs.Redis.Host = rd.Data["host"].(string)
+	config.Confs.Redis.DB = rd.Data["db"].(string)
+
 	// Write users Path
 	_, err = c.Write(config.Confs.Users.Path, map[string]interface{}{
 		"debug":  config.Confs.Users.Host + config.Confs.Users.DebugAddr,
@@ -237,4 +259,9 @@ func initVault() error {
 	}
 
 	return nil
+}
+
+func initRedis() {
+	redis.DB.New()
+
 }
