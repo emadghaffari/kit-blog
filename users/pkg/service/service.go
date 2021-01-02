@@ -5,7 +5,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/gofrs/uuid"
 	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	"github.com/opentracing/opentracing-go"
 	"go.mongodb.org/mongo-driver/bson"
@@ -41,6 +40,9 @@ func (b *basicUsersService) Login(ctx context.Context, username string, password
 	data := model.User{}
 	values := bson.M{"username": username, "password": cryptoutils.GetMD5(password)}
 	res := b.db.FindOne(context.Background(), values)
+	if res.Err() != nil {
+		return "", res.Err()
+	}
 	if err := res.Decode(&data); err != nil {
 		return "", err
 	}
@@ -52,12 +54,13 @@ func (b *basicUsersService) Login(ctx context.Context, username string, password
 		return "", err
 	}
 
-	u, err := uuid.NewV4()
+	jwt, err := model.Conf.Generate(data)
 	if err != nil {
-		log.Printf("failed to generate UUID: %v", err)
+		log.Printf("Error in create jwt: %v", err)
+		return "", err
 	}
 
-	return u.String(), err
+	return jwt.AccessToken, err
 }
 func (b *basicUsersService) Register(ctx context.Context, username string, password string, email string, phone string) (s0 string, e1 error) {
 	tracer := opentracing.GlobalTracer()
@@ -77,7 +80,8 @@ func (b *basicUsersService) Register(ctx context.Context, username string, passw
 		return "", err
 	}
 
-	if _, ok := res.InsertedID.(primitive.ObjectID); !ok {
+	oid, ok := res.InsertedID.(primitive.ObjectID)
+	if !ok {
 		log.Printf("Error in get oid from res")
 		return "", err
 	}
@@ -89,12 +93,13 @@ func (b *basicUsersService) Register(ctx context.Context, username string, passw
 		return "", err
 	}
 
-	u, err := uuid.NewV4()
+	jwt, err := model.Conf.Generate(model.User{ID: oid.Hex(), Username: username, Email: email, Phone: phone})
 	if err != nil {
-		log.Printf("failed to generate UUID: %v", err)
+		log.Printf("Error in create jwt: %v", err)
+		return "", err
 	}
 
-	return u.String(), err
+	return jwt.AccessToken, err
 }
 
 func (b *basicUsersService) Get(ctx context.Context, id string) (username, email, phone string, err error) {
